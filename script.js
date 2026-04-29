@@ -23,6 +23,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const textManagementSection = document.getElementById('text-management');
     const testSettingsSection = document.getElementById('test-settings');
     const performanceChartCtx = document.getElementById('performance-chart').getContext('2d');
+    
+    // Background Noise Elements
+    const bgNoiseSlider = document.getElementById('bg-noise-volume');
+    const bgNoiseValue = document.getElementById('bg-noise-value');
 
     // Variables
     let timer;
@@ -34,6 +38,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let performanceChart;
     let allTexts;
     let testHistory = JSON.parse(localStorage.getItem('typingTestHistory') || '[]');
+    
+    // Background Noise Variables
+    let bgNoiseAudio = null;
+    let bgNoiseVolume = 0.26; // Default 26%
 
     
 
@@ -54,6 +62,16 @@ document.addEventListener('DOMContentLoaded', function() {
     submitTestBtn.addEventListener('click', submitTest);
     newTestBtn.addEventListener('click', resetTest);
     userInput.addEventListener('input', checkTyping);
+    
+    // Background Noise Slider Event
+    bgNoiseSlider.addEventListener('input', function() {
+        const volume = parseInt(this.value);
+        bgNoiseValue.textContent = volume + '%';
+        bgNoiseVolume = volume / 100;
+        if (bgNoiseAudio) {
+            bgNoiseAudio.volume = bgNoiseVolume;
+        }
+    });
     
     // Disable copy-paste and other shortcuts
     userInput.addEventListener('keydown', function(e) {
@@ -79,14 +97,101 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasSamples = savedTexts.length!==0
         
         if (hasSamples) {
-            allTexts = [...sampleTexts, ...savedTexts];
-
+            // Create copies of sampleTexts to avoid modifying original
+            const sampleTextsCopy = sampleTexts.map(text => ({...text}));
+            allTexts = [...sampleTextsCopy, ...savedTexts];
         }
         else{
-            allTexts = sampleTexts;
+            // Create copies of sampleTexts to avoid modifying original
+            allTexts = sampleTexts.map(text => ({...text}));
         }
         for (let i = 0; i < allTexts.length; i++) {
             allTexts[i].title = `${i + 1}. ${allTexts[i].title}`;
+        }
+    }
+    
+    // Background Noise Functions
+    function initBackgroundNoise() {
+        // Use the keyboard typing sound audio file
+        try {
+            bgNoiseAudio = new Audio('keyboard-typing-sound.mp3');
+            bgNoiseAudio.loop = true;
+            bgNoiseAudio.volume = bgNoiseVolume;
+        } catch (e) {
+            console.log('Audio file not found, falling back to Web Audio API');
+            // Fallback to white noise if audio file fails
+            initBackgroundNoiseFallback();
+        }
+    }
+    
+    function initBackgroundNoiseFallback() {
+        // Generate white noise using Web Audio API as fallback
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const bufferSize = 2 * audioContext.sampleRate;
+            const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+            
+            const whiteNoise = audioContext.createBufferSource();
+            whiteNoise.buffer = noiseBuffer;
+            whiteNoise.loop = true;
+            
+            // Create gain node for volume control
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = bgNoiseVolume;
+            
+            whiteNoise.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            bgNoiseAudio = {
+                audioContext: audioContext,
+                source: whiteNoise,
+                gainNode: gainNode,
+                play: function() {
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                    whiteNoise.start();
+                },
+                stop: function() {
+                    whiteNoise.stop();
+                    whiteNoise = null;
+                },
+                setVolume: function(vol) {
+                    gainNode.gain.value = vol;
+                }
+            };
+        } catch (e) {
+            console.log('Web Audio API not supported');
+        }
+    }
+    
+    function playBackgroundNoise() {
+        if (!bgNoiseAudio) {
+            initBackgroundNoise();
+        }
+        if (bgNoiseAudio) {
+            if (bgNoiseAudio.play) {
+                bgNoiseAudio.play().catch(e => {
+                    console.log('Error playing audio:', e);
+                });
+            } else if (bgNoiseAudio.play) {
+                bgNoiseAudio.play();
+            }
+        }
+    }
+    
+    function stopBackgroundNoise() {
+        if (bgNoiseAudio) {
+            try {
+                bgNoiseAudio.pause();
+                bgNoiseAudio.currentTime = 0;
+            } catch (e) {}
+            bgNoiseAudio = null;
         }
     }
 
@@ -217,6 +322,9 @@ document.addEventListener('DOMContentLoaded', function() {
         startTime = new Date();
         testActive = true;
 
+        // Play background noise during typing
+        playBackgroundNoise();
+
         // Hide unnecessary sections
         textManagementSection.classList.add('hidden');
         testSettingsSection.classList.add('hidden');
@@ -270,6 +378,9 @@ document.addEventListener('DOMContentLoaded', function() {
         testActive = false;
         userInput.disabled = true;
         submitTestBtn.disabled = true;
+        
+        // Stop background noise when test is completed
+        stopBackgroundNoise();
 
         const endTime = new Date();
         const timeTaken = (endTime - startTime) / 1000 / 60; // in minutes
@@ -457,6 +568,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function resetTest() {
+        // Stop background noise
+        stopBackgroundNoise();
+        
         // Show the initial sections again
         textManagementSection.classList.remove('hidden');
         testSettingsSection.classList.remove('hidden');

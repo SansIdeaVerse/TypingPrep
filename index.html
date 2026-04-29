@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Typing Test Pro</title>
+    <title>TypingPrep</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
     
@@ -22,7 +22,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>Typing Test Pro</h1>
+            <h1>TypingPrep</h1>
             <p class="tagline">Test and improve your typing skills</p>
         </header>
         
@@ -52,6 +52,11 @@
 
                 <label for="target-cph">Target key depression per Hour (CPH):</label>
                 <input type="number" id="target-cph" min="5000" max="12000" value="8000">
+                
+                <label for="bg-noise-volume">Background Noise:</label>
+                <input type="range" id="bg-noise-volume" min="0" max="100" value="26">
+                <span id="bg-noise-value">26%</span>
+                
                 <button id="start-test" class="primary-btn">Start Test</button>
             </div>
         </div>
