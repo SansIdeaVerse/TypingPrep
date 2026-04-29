@@ -408,7 +408,7 @@ button:disabled {
     color: var(--success-color);
     font-weight: 500;
 }
-}
+
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
